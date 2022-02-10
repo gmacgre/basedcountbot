@@ -1,6 +1,7 @@
 const {Client, Intents} = require("discord.js")
 const mongoose = require('mongoose')
 const config = require("./config.json");
+const responses = require("./responses.json")
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, 
                                       Intents.FLAGS.GUILD_MESSAGE_REACTIONS, Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS]})
 
@@ -42,14 +43,21 @@ client.on("message", msg => {
       //make a hash of the guild and the userID
       //see if there is an entry in the DB
       //if not, make a new entry and increase the count and pills as necessary
-      if(msg.type != "REPLY"){
-        selfReplyResLength = config.selfReplies.length
-        replyMessage = Math.floor(Math.random() * selfReplyResLength);
-        msg.reply(config.selfReplies[replyMessage])
-      }
-      else{
-        hash = msg.author.id + msg.guildId
-        console.log("valid pill can be given to " + hash)
+      if(msg.type == "REPLY"){
+        rephash = msg.mentions.repliedUser.id + msg.guildId;
+        userhash = msg.author.id + msg.guildId;
+        console.log("valid pill can be given to " + rephash);
+        console.log("Our hash is " + userhash);
+        if(rephash == userhash){
+          selfReplyResLength = responses.selfReplies.length
+          replyMessage = Math.floor(Math.random() * selfReplyResLength);
+          msg.reply(responses.selfReplies[replyMessage])
+        }
+        else{
+          //go into the database, and set up a user if needed
+          //increment the based count, add pills as needed
+          //post giant listing of pills/count
+        }
       }
     }
   }
