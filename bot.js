@@ -21,6 +21,25 @@ const basedMember = new mongoose.Schema({
   } 
 })
 
+//set up a message for replying to the giving of a pill
+//"X is officially based! Their current count is Y"
+//"Pills: ...."
+//include the currently added pill as well
+function formatMessage(basedUser, discordUser){
+  let str = ""
+  str += "**" +  discordUser.username + " is officially based!**\n";
+  str += "Their based count is now " + basedUser.count + "\n";
+  str += "Pills: ";
+  for(let i = 0; i < basedUser.pills.length; i++){
+    str += basedUser.pills[i]
+    if(i + 1 != basedUser.pills.length){
+      str += ", "
+    }
+  }
+  str += "\n"
+  return str;
+}
+
 //creating the based table, ready for use in functions
 const theBased = mongoose.model('based', basedMember);
 
@@ -54,10 +73,13 @@ client.on("message", msg => {
           msg.reply(responses.selfReplies[replyMessage])
         }
         else{
+          //valid giving of a pill
           //go into the database, and set up a user if needed
           //increment the based count, add pills as needed
           //post giant listing of pills/count
-          
+          //TODO: THE DATABASE RETRIEVAL
+          let basedUser = theBased.findOne({ user: rephash });
+          let messageBack = formatMessage(,msg.mentions.repliedUser);
         }
       }
     }
