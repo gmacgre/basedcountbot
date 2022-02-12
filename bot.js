@@ -28,7 +28,7 @@ const basedMember = new mongoose.Schema({
 function formatMessage(basedUser, discordUser){
   let str = ""
   str += "**" +  discordUser.username + " is officially based!**\n";
-  str += "Their based count is now " + basedUser.count + "\n";
+  str += "Their based count is now " + basedUser.count + ".\n";
   str += "Pills: ";
   for(let i = 0; i < basedUser.pills.length; i++){
     str += basedUser.pills[i]
@@ -47,7 +47,7 @@ client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`)
 })
 
-client.on("message", msg => {
+client.on("message", async (msg) => {
   if(msg.author != client.user){
     if(msg.author.id == config.builderID){
       //I am the master, if content is killBot it will die
@@ -62,11 +62,19 @@ client.on("message", msg => {
       //make a hash of the guild and the userID
       //see if there is an entry in the DB
       //if not, make a new entry and increase the count and pills as necessary
+      
+      //see if there are mentions- either the ping is first followed by based/baste
+      //or based/baste MUST be the first word mentioned
+      //return early if satisfaction is not met
+
+
+      //parse out pills
+
       if(msg.type == "REPLY"){
         rephash = msg.mentions.repliedUser.id + msg.guildId;
         userhash = msg.author.id + msg.guildId;
-        console.log("valid pill can be given to " + rephash);
-        console.log("Our hash is " + userhash);
+        //console.log("valid pill can be given to " + rephash);
+        //console.log("Our hash is " + userhash);
         if(rephash == userhash){
           selfReplyResLength = responses.selfReplies.length
           replyMessage = Math.floor(Math.random() * selfReplyResLength);
@@ -77,9 +85,16 @@ client.on("message", msg => {
           //go into the database, and set up a user if needed
           //increment the based count, add pills as needed
           //post giant listing of pills/count
-          //TODO: THE DATABASE RETRIEVAL
-          let basedUser = theBased.findOne({ user: rephash });
-          let messageBack = formatMessage(,msg.mentions.repliedUser);
+          let basedUser = await theBased.findOne({ user: rephash });
+          if(basedUser == null){
+            console.log("User didn't have a profile, making one for them")
+            const basedUserNew = new theBased({ user: rephash, pills: [] });
+            basedUser = basedUserNew;
+          }
+          basedUser.count += 1;
+          await basedUser.save();
+          let messageBack = formatMessage(basedUser,msg.mentions.repliedUser);
+          msg.reply(messageBack);
         }
       }
     }
