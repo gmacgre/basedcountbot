@@ -47,7 +47,7 @@ client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`)
 })
 
-client.on("message", async (msg) => {
+client.on("messageCreate", async (msg) => {
   if(msg.author != client.user){
     if(msg.author.id == config.builderID){
       //I am the master, if content is killBot it will die
