@@ -40,6 +40,126 @@ function formatMessage(basedUser, discordUser){
   return str;
 }
 
+function isPing(string){
+  if(string.length != 22){ //length of a user ping
+    return false;
+  }
+  let start = string.substring(0,3);
+  if(start != "<@!") return false;
+  start = string.substring(21);
+  if(start != ">") return false;
+  return true;
+}
+
+function getPill(content, msg){
+  let splitContent = content.split(" ");
+  while(true){
+    //remove the proceeding pings if needed
+    if(isPing(splitContent[0])){
+      splitContent.shift();
+      if(splitContent.length == 0) return -1; //improper format
+    }
+    else break;
+  }
+  if(splitContent[0].toLowerCase() == "baste" || splitContent[0].toLowerCase() == "based"){
+    //start getting the pill
+    splitContent.shift();
+    if(splitContent.length == 0) return -2; //valid based, but no pill
+    if(splitContent[0].toLowerCase() == "and"){
+      splitContent.shift();
+      //these remove the "based and" sections of the pill
+      let pill = ""
+      while(!splitContent[0].toLowerCase().includes("pilled")){
+        if(isPing(splitContent[0])){
+          let number = splitContent[0].slice(3, 21)
+          for(user of msg.mentions.users){
+            if(user[0] == number){
+              pill += user[1].username + " ";
+            }
+          }
+        }
+        else pill += splitContent[0] + " ";
+        splitContent.shift();
+        if(splitContent.length == 0) {
+          //"based and a w e g ab ag " -> not gonna be a based, man
+          console.log("Returning -1: no final 'pilled'")
+          return -1;
+        }
+      }
+      if(splitContent[0].toLowerCase() != "pilled"){
+        let finalPart = splitContent[0].split("pilled")[0];
+        if(finalPart[finalPart.length - 1] == '-'){
+          finalPart = finalPart.slice(0, -1);
+        }
+        if(isPing(finalPart)){
+          let number = splitContent[0].slice(3, 21)
+          for(user of msg.mentions.users){
+            if(user[0] == number){
+              pill += user[1].username + " ";
+            }
+          }
+        }
+        else{
+          pill += finalPart
+        }
+      }
+      else{
+        pill = pill.slice(0, -1);
+      }
+      if(pill== "") return -2; //empty pill, just give the based.
+      return pill;
+    }
+    else{
+      console.log("Returning -1: and not second")
+      return -1; //improper format "based on the context...."
+    }
+  }
+  else {
+    console.log("Returning -1: based not first")
+    return -1; //not a proper format -> based not the first thing after possible pings
+  }
+}
+
+async function addBasedReply(msg, rephash, userhash, targetUser){
+  if(rephash == userhash){
+    let selfReplyResLength = responses.selfReplies.length
+    let replyMessage = Math.floor(Math.random() * selfReplyResLength);
+    msg.reply(responses.selfReplies[replyMessage])
+  }
+  else{
+    //valid giving of a pill
+    //go into the database, and set up a user if needed
+    //increment the based count, add pills as needed
+    //post giant listing of pills/count
+    let pill = getPill(msg.content, msg);
+    if(pill == -1){
+      return; //based was not the first thing in the phrase, pill should not be given.
+    }
+    let basedUser = await theBased.findOne({ user: rephash });
+    if(basedUser == null){
+      const basedUserNew = new theBased({ user: rephash, pills: [] });
+      basedUser = basedUserNew;
+    }
+    basedUser.count += 1;
+    if(pill != -2){ //valid pill can be given
+      basedUser.pills.push(pill);
+    }
+    await basedUser.save();
+    let messageBack = formatMessage(basedUser, targetUser);
+    msg.reply(messageBack);
+  }
+}
+
+async function pilltheRest(msg, repUserId){
+  let authHash = msg.author.id + msg.guildId;
+  for(user of msg.mentions.users){
+    if(user[0] == repUserId) continue;
+    let rephash = user[0] + msg.guildId;
+    addBasedReply(msg, rephash, authHash, user[1]);
+  }
+}
+
+
 //creating the based table, ready for use in functions
 const theBased = mongoose.model('based', basedMember);
 
@@ -51,7 +171,7 @@ client.on("messageCreate", async (msg) => {
   if(msg.author != client.user){
     if(msg.author.id == config.builderID){
       //I am the master, if content is killBot it will die
-      if(msg.content == "killBot") {
+      if(msg.content == config.killCommand) {
         client.destroy();
         mongoose.connection.close()
       }
@@ -59,44 +179,15 @@ client.on("messageCreate", async (msg) => {
     console.log(msg.content)
     text = msg.content.toLowerCase()
     if (text.includes("based") || text.includes("baste")) {
-      //make a hash of the guild and the userID
-      //see if there is an entry in the DB
-      //if not, make a new entry and increase the count and pills as necessary
-      
-      //see if there are mentions- either the ping is first followed by based/baste
-      //or based/baste MUST be the first word mentioned
-      //return early if satisfaction is not met
-
-
-      //parse out pills
-
+      let repliedUserId = null;
       if(msg.type == "REPLY"){
-        rephash = msg.mentions.repliedUser.id + msg.guildId;
-        userhash = msg.author.id + msg.guildId;
-        //console.log("valid pill can be given to " + rephash);
-        //console.log("Our hash is " + userhash);
-        if(rephash == userhash){
-          selfReplyResLength = responses.selfReplies.length
-          replyMessage = Math.floor(Math.random() * selfReplyResLength);
-          msg.reply(responses.selfReplies[replyMessage])
-        }
-        else{
-          //valid giving of a pill
-          //go into the database, and set up a user if needed
-          //increment the based count, add pills as needed
-          //post giant listing of pills/count
-          let basedUser = await theBased.findOne({ user: rephash });
-          if(basedUser == null){
-            console.log("User didn't have a profile, making one for them")
-            const basedUserNew = new theBased({ user: rephash, pills: [] });
-            basedUser = basedUserNew;
-          }
-          basedUser.count += 1;
-          await basedUser.save();
-          let messageBack = formatMessage(basedUser,msg.mentions.repliedUser);
-          msg.reply(messageBack);
-        }
+        let rephash = msg.mentions.repliedUser.id + msg.guildId;
+        let userhash = msg.author.id + msg.guildId;
+        let targetUser = msg.mentions.repliedUser;
+        await addBasedReply(msg, rephash, userhash, targetUser);
+        repliedUserId = msg.mentions.repliedUser.id;
       }
+      pilltheRest(msg, repliedUserId);
     }
   }
 })
