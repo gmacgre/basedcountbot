@@ -168,6 +168,7 @@ client.on("ready", () => {
 })
 
 client.on("messageCreate", async (msg) => {
+  console.log("HELLO!")
   if(msg.author != client.user){
     if(msg.author.id == config.builderID){
       //I am the master, if content is killBot it will die
