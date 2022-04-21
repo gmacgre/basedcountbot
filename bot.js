@@ -29,24 +29,25 @@ function formatMessage(basedUser, discordUser){
   let str = ""
   str += "**" +  discordUser.username + " is officially based!**\n";
   str += "Their based count is now " + basedUser.count + ".\n";
-  str += "Pills: ";
+  str += "```Pills: ";
   for(let i = 0; i < basedUser.pills.length; i++){
     str += basedUser.pills[i]
     if(i + 1 != basedUser.pills.length){
       str += ", "
     }
   }
-  str += "\n"
+  str += "```\n"
   return str;
 }
 
 function isPing(string){
-  if(string.length != 22){ //length of a user ping
+  console.log("TESTING STRING: " + string)
+  if(string.length != 21){ //length of a user ping
     return false;
   }
-  let start = string.substring(0,3);
-  if(start != "<@!") return false;
-  start = string.substring(21);
+  let start = string.substring(0,2);
+  if(start != "<@") return false;
+  start = string.substring(20);
   if(start != ">") return false;
   return true;
 }
@@ -71,7 +72,9 @@ function getPill(content, msg){
       let pill = ""
       while(!splitContent[0].toLowerCase().includes("pilled")){
         if(isPing(splitContent[0])){
-          let number = splitContent[0].slice(3, 21)
+          let number = splitContent[0].slice(2, 20)
+          console.log("Dealing with getting the username")
+          console.log(number)
           for(user of msg.mentions.users){
             if(user[0] == number){
               pill += user[1].username + " ";
@@ -92,7 +95,8 @@ function getPill(content, msg){
           finalPart = finalPart.slice(0, -1);
         }
         if(isPing(finalPart)){
-          let number = splitContent[0].slice(3, 21)
+          let number = splitContent[0].slice(2, 20)
+          console.log(number)
           for(user of msg.mentions.users){
             if(user[0] == number){
               pill += user[1].username + " ";
@@ -159,6 +163,21 @@ async function pilltheRest(msg, repUserId){
   }
 }
 
+async function remPills(msg){
+  let splitmsg = msg.content.split(" ")
+  //first should be the command "remPills"
+  //second is the user id in number format
+  let id = splitmsg[1] + msg.guildId
+  console.log("ID OF PILLS TO REMOVE " + id)
+  let cursedUser = await theBased.findOne({ user: id})
+  if(cursedUser == null){
+    console.log("No valid user to rem pills from")
+    return false
+  }
+  cursedUser.pills = [];
+  await cursedUser.save()
+  return true
+}
 
 //creating the based table, ready for use in functions
 const theBased = mongoose.model('based', basedMember);
@@ -168,7 +187,6 @@ client.on("ready", () => {
 })
 
 client.on("messageCreate", async (msg) => {
-  console.log("HELLO!")
   if(msg.author != client.user){
     if(msg.author.id == config.builderID){
       //I am the master, if content is killBot it will die
@@ -189,6 +207,16 @@ client.on("messageCreate", async (msg) => {
         repliedUserId = msg.mentions.repliedUser.id;
       }
       pilltheRest(msg, repliedUserId);
+    }
+    else if (text.includes("remPills") && msg.author.id == config.builderID){
+      let boolin = remPills(msg)
+      if (boolin){
+        //send a message that pills have been rem'd
+        msg.reply("Pills removed for that user")
+      }
+      else{
+        msg.reply("Pills not removed- check log")
+      }
     }
   }
 })
